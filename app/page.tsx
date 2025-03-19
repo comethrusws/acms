@@ -169,13 +169,13 @@ export default async function Home() {
                 title="For Authors" 
                 description="Submit your papers and track their review status. Automated anonymization ensures fair reviews."
                 action={isSignedIn ? "Submit Paper" : "Sign Up as Author"}
-                href={isSignedIn ? "/dashboard/papers/submit" : "/sign-up"}
+                href={isSignedIn ? "/dashboard/papers/submit" : "/sign-up?role=AUTHOR"}
               />
               <RoleCard 
                 title="For Reviewers" 
                 description="Access assigned papers for review. Provide scores and comments in an efficient interface."
                 action={isSignedIn ? "View Assignments" : "Sign Up as Reviewer"}
-                href={isSignedIn ? "/dashboard/reviews" : "/sign-up"}
+                href={isSignedIn ? "/dashboard/reviews" : "/sign-up?role=REVIEWER"}
               />
               <RoleCard 
                 title="For Organizers" 
@@ -186,8 +186,8 @@ export default async function Home() {
               <RoleCard 
                 title="For Attendees" 
                 description="Browse the conference schedule and register to attend. Receive a digital badge for the event."
-                action="Browse Schedule"
-                href="/schedule"
+                action={isSignedIn ? "Browse Schedule" : "Sign Up as Attendee"}
+                href={isSignedIn ? "/schedule" : "/sign-up?role=ATTENDEE"}
               />
             </div>
           </div>
