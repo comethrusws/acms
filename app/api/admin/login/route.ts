@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       password === process.env.ADMIN_PASSWORD
     ) {
       // Need to await the cookies() function
-      const cookieStore = await cookies();
+      const cookieStore = cookies();
       
       // Set an HTTP-only cookie that expires in 24 hours
       cookieStore.set("admin_session", "true", {
@@ -22,7 +22,10 @@ export async function POST(request: Request) {
         path: "/",
       });
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ 
+        success: true, 
+        message: "Login successful" 
+      });
     } 
 
     // Return error for invalid credentials
@@ -31,6 +34,7 @@ export async function POST(request: Request) {
       { status: 401 }
     );
   } catch (error) {
+    console.error("Admin login error:", error);
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 }

@@ -1,10 +1,28 @@
 import { Activity, Users, FileText, Settings, ArrowRight, TrendingUp, Clock, Calendar } from "lucide-react";
+import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/admin-auth";
 
 // Import these components after creating them in the shadcn setup
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+  // Verify admin is authenticated
+  await requireAdmin();
+  
+  // Fetch real data from the database
+  const userCount = await db.user.count();
+  const paperCount = await db.paper.count();
+  const reviewCount = await db.review.count();
+  const pendingReviews = await db.review.count({ 
+    where: { completed: false } 
+  });
+  
+  // Calculate review progress percentage
+  const reviewProgress = reviewCount > 0 
+    ? Math.round((reviewCount - pendingReviews) / reviewCount * 100) 
+    : 0;
+    
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -13,9 +31,11 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Welcome back to ACMS Admin Panel</p>
         </div>
-        <Button>
-          <Calendar className="mr-2 h-4 w-4" />
-          New Conference
+        <Button asChild>
+          <a href="/admin/conference/new">
+            <Calendar className="mr-2 h-4 w-4" />
+            New Conference
+          </a>
         </Button>
       </div>
 
@@ -27,7 +47,7 @@ export default function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">573</div>
+            <div className="text-2xl font-bold">{userCount}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-emerald-500 flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" /> +12%
@@ -42,7 +62,7 @@ export default function AdminDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">248</div>
+            <div className="text-2xl font-bold">{paperCount}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-emerald-500 flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" /> +24%
@@ -50,17 +70,17 @@ export default function AdminDashboard() {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Review Progress</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">68%</div>
+            <div className="text-2xl font-bold">{reviewProgress}%</div>
             <p className="text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" /> 12 days remaining
+                <Clock className="h-3 w-3" /> {pendingReviews} reviews pending
               </span>
             </p>
           </CardContent>

@@ -9,12 +9,25 @@ import {
   Calendar, 
   Inbox
 } from "lucide-react";
+import { requireAdmin } from "@/lib/admin-auth";
+import { redirect } from "next/navigation";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  try {
+    // Only verify admin authentication if not in /login
+    // This prevents an infinite redirect loop
+    if (!String(new URL(globalThis.location?.href ?? "http://localhost").pathname).includes("/admin/login")) {
+      await requireAdmin();
+    }
+  } catch (e) {
+    // If requireAdmin fails on server side, don't crash
+    // Client side navigation will handle the redirect
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -51,9 +64,10 @@ export default function AdminLayout({
             <NavItem href="/admin/settings" icon={<Settings size={18} />} label="Settings" />
           </div>
         </nav>
+
         <div className="p-4 border-t border-gray-200">
           <Link 
-            href="/admin/logout" 
+            href="/api/admin/logout" 
             className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-red-600 hover:bg-red-50 w-full"
           >
             <LogOut className="mr-3 h-4 w-4" /> 
@@ -94,11 +108,11 @@ export default function AdminLayout({
 
 function NavItem({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
   return (
-    <Link 
+    <Link
       href={href}
-      className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100 group"
+      className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
     >
-      <span className="mr-3 text-gray-500 group-hover:text-gray-700">{icon}</span>
+      <span className="mr-3 text-gray-500">{icon}</span>
       {label}
     </Link>
   );

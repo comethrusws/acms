@@ -53,9 +53,9 @@ export default async function Home() {
                     Sign In
                   </Button>
                 </SignInButton>
-                <SignUpButton mode="modal">
-                  <Button className="text-sm">Sign Up</Button>
-                </SignUpButton>
+                <Button className="text-sm" asChild>
+                  <Link href="/sign-up">Sign Up</Link>
+                </Button>
               </>
             )}
           </div>
@@ -81,11 +81,11 @@ export default async function Home() {
                     </Link>
                   </Button>
                 ) : (
-                  <SignUpButton mode="modal">
-                    <Button size="lg">
+                  <Button size="lg" asChild>
+                    <Link href="/sign-up">
                       Get Started
-                    </Button>
-                  </SignUpButton>
+                    </Link>
+                  </Button>
                 )}
                 <Button variant="outline" size="lg" asChild>
                   <Link href="/schedule">

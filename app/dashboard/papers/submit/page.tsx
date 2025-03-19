@@ -1,4 +1,159 @@
-// ...existing code...
+"use client";
+
+import { useState, ChangeEvent, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { toast } from "sonner";
+
+export default function SubmitPaper() {
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    title: "",
+    abstract: "",
+    keywords: ""
+  });
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === "application/pdf") {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast.error("File too large", {
+          description: "The maximum file size is 10MB"
+        });
+        return;
+      }
+      setPdfFile(file);
+    } else if (file) {
+      toast.error("Invalid file", {
+        description: "Please upload a PDF file"
+      });
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!pdfFile) {
+      toast.error("Missing PDF", {
+        description: "Please upload your paper in PDF format"
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Upload PDF file
+      const fileFormData = new FormData();
+      fileFormData.append("file", pdfFile);
+      
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: fileFormData,
+      });
+      
+      if (!uploadRes.ok) {
+        throw new Error("Failed to upload file");
+      }
+      
+      const { fileUrl } = await uploadRes.json();
+      
+      // Submit paper details
+      const paperRes = await fetch("/api/papers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          pdfUrl: fileUrl
+        }),
+      });
+      
+      if (!paperRes.ok) {
+        throw new Error("Failed to submit paper");
+      }
+      
+      toast.success("Paper submitted successfully!");
+      router.push("/dashboard/papers/my");
+      
+    } catch (error) {
+      console.error(error);
+      toast.error("Submission failed", {
+        description: "There was a problem submitting your paper. Please try again."
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-8">
+        <Link 
+          href="/dashboard/papers/my"
+          className="text-blue-600 dark:text-blue-400 hover:underline flex items-center"
+        >
+          ← Back to my papers
+        </Link>
+      </div>
+      
+      <h1 className="text-3xl font-bold mb-8">Submit a Paper</h1>
+      
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <form onSubmit={handleSubmit}>
+          <div className="mb-6">
+            <label htmlFor="title" className="block mb-2 font-medium">
+              Paper Title *
+            </label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+              required
+              placeholder="Enter the title of your paper"
+            />
+          </div>
+          
+          <div className="mb-6">
+            <label htmlFor="abstract" className="block mb-2 font-medium">
+              Abstract *
+            </label>
+            <textarea
+              id="abstract"
+              name="abstract"
+              value={formData.abstract}
+              onChange={handleInputChange}
+              rows={5}
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+              required
+              placeholder="Enter the abstract of your paper"
+            ></textarea>
+          </div>
+          
+          <div className="mb-6">
+            <label htmlFor="keywords" className="block mb-2 font-medium">
+              Keywords
+            </label>
+            <input
+              type="text"
+              id="keywords"
+              name="keywords"
+              value={formData.keywords}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+              placeholder="Enter keywords separated by commas"
+            />
+          </div>
+          
           <div className="mb-8">
             <label htmlFor="pdfFile" className="block mb-2 font-medium">
               Paper PDF *
