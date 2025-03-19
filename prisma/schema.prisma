@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  clerkId       String         @unique
+  email         String         @unique
+  name          String
+  role          UserRole       @default(ATTENDEE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  papers        Paper[]        @relation("AuthorPapers")
+  assignedReviews Review[]      @relation("ReviewerReviews")
+  registrations Registration[]
+  profile       Profile?
+}
+
+enum UserRole {
+  ADMIN
+  ORGANIZER
+  REVIEWER
+  AUTHOR
+  ATTENDEE
+}
+
+model Profile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution  String?
+  department   String?
+  title        String?
+  bio          String?  @db.Text
+  profileImage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Paper {
+  id              String    @id @default(uuid())
+  title           String
+  abstract        String    @db.Text
+  keywords        String?   @db.Text
+  pdfUrl          String
+  anonymizedPdfUrl String?
+  isAnonymized    Boolean   @default(false)
+  authorId        String
+  author          User      @relation("AuthorPapers", fields: [authorId], references: [id])
+  status          PaperStatus @default(SUBMITTED)
+  needsManualReview Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  reviews         Review[]
+  sessions        Session[]
+}
+
+enum PaperStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  paperId    String
+  paper      Paper    @relation(fields: [paperId], references: [id])
+  reviewerId String
+  reviewer   User     @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+  score      Int?
+  comments   String?  @db.Text
+  completed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Session {
+  id          String    @id @default(uuid())
+  title       String
+  description String?   @db.Text
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  paperId     String?
+  paper       Paper?    @relation(fields: [paperId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Registration {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  isPaid    Boolean  @default(false)
+  badgeUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ConferenceSettings {
+  id                    String   @id @default(uuid())
+  conferenceName        String   @default("Academic Conference")
+  conferenceStartDate   DateTime
+  conferenceEndDate     DateTime
+  submissionDeadline    DateTime
+  reviewDeadline        DateTime
+  notificationDate      DateTime
+  registrationDeadline  DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
