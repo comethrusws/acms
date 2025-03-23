@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
 
-// Fixed type definition for Next.js App Router
+// Using proper Next.js type for route handlers
 export async function POST(
   request: Request,
-  { params }: { params: { paperId: string } }
+  context: { params: { paperId: string } }
 ) {
   try {
     // Check admin authentication using cookie
@@ -21,7 +21,7 @@ export async function POST(
       );
     }
 
-    const { paperId } = params;
+    const { paperId } = context.params;
     const { reviewerIds } = await request.json();
 
     if (!Array.isArray(reviewerIds) || reviewerIds.length === 0) {
