@@ -6,5 +6,5 @@
       "SKIP_TYPE_CHECK": "true"
     }
   },
-  "buildCommand": "prisma generate && next build --no-lint"
+  "buildCommand": "npx prisma generate && next build --no-lint"
 }
