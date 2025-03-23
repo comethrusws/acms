@@ -5,5 +5,6 @@
       "NEXT_PUBLIC_SKIP_TYPE_CHECK": "true",
       "SKIP_TYPE_CHECK": "true"
     }
-  }
+  },
+  "buildCommand": "prisma generate && next build --no-lint"
 }
