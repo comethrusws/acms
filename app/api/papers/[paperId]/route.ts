@@ -107,6 +107,41 @@ export async function PATCH(
       );
     }
 
+    // Get the current paper to check for state transitions
+    const currentPaper = await db.paper.findUnique({
+      where: { id: paperId },
+      include: {
+        reviews: true
+      }
+    });
+
+    if (!currentPaper) {
+      return NextResponse.json(
+        { message: 'Paper not found' },
+        { status: 404 }
+      );
+    }
+
+    // Special validation for ACCEPTED status
+    if (data.status === 'ACCEPTED') {
+      // Check if there are any reviews
+      if (!currentPaper.reviews || currentPaper.reviews.length === 0) {
+        return NextResponse.json(
+          { message: 'Cannot accept a paper without any reviews' },
+          { status: 400 }
+        );
+      }
+
+      // Check if all reviews are completed
+      const hasUncompletedReviews = currentPaper.reviews.some(review => !review.completed);
+      if (hasUncompletedReviews) {
+        return NextResponse.json(
+          { message: 'Cannot accept a paper with incomplete reviews' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Update paper in database
     const updatedPaper = await db.paper.update({
       where: { id: paperId },
@@ -115,14 +150,32 @@ export async function PATCH(
         updatedAt: new Date()
       },
       include: {
-        author: true
+        author: true,
+        reviews: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
       }
     });
 
-    // Return the updated paper
+    // If the paper is now under review and doesn't have reviewers yet
+    // we'll indicate this in the response
+    const needsReviewers = 
+      data.status === 'UNDER_REVIEW' && 
+      (!updatedPaper.reviews || updatedPaper.reviews.length === 0);
+
+    // Return the updated paper with additional metadata
     return NextResponse.json({
       message: 'Paper status updated successfully',
-      paper: updatedPaper
+      paper: updatedPaper,
+      needsReviewers: needsReviewers
     });
   } catch (error) {
     console.error('Error updating paper status:', error);

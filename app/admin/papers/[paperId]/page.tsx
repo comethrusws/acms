@@ -43,6 +43,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import AssignReviewersDialog from "../components/assign-reviewers-dialog";
 
 export default function PaperDetailPage() {
   const params = useParams();
@@ -66,21 +68,8 @@ export default function PaperDetailPage() {
         }
         
         const paperData = await paperRes.json();
+        console.log("Paper data:", paperData); // Debug log
         setPaper(paperData.paper);
-        
-        // Fetch available reviewers (users with REVIEWER role)
-        const reviewersRes = await fetch('/api/users?role=REVIEWER');
-        if (reviewersRes.ok) {
-          const reviewersData = await reviewersRes.json();
-          
-          // Filter out reviewers who are already assigned
-          const assignedReviewerIds = paperData.paper.reviews.map(r => r.reviewerId);
-          const availableReviewersList = reviewersData.users.filter(
-            r => !assignedReviewerIds.includes(r.id)
-          );
-          
-          setAvailableReviewers(availableReviewersList);
-        }
         
       } catch (error) {
         console.error("Error fetching paper:", error);
@@ -126,6 +115,14 @@ export default function PaperDetailPage() {
       setPaper(data.paper);
       
       toast.success(`Paper status updated to ${newStatus.replace('_', ' ')}`);
+
+      // If paper is now under review and needs reviewers, show assignment dialog
+      if (data.needsReviewers) {
+        toast.info("This paper needs reviewers", {
+          description: "Please assign reviewers to continue the review process",
+          duration: 5000
+        });
+      }
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Failed to update paper status");
@@ -133,7 +130,22 @@ export default function PaperDetailPage() {
       setIsUpdatingStatus(false);
     }
   };
-  
+
+  const refreshPaperData = async () => {
+    try {
+      setIsLoading(true);
+      const paperRes = await fetch(`/api/papers/${params.paperId}`);
+      if (paperRes.ok) {
+        const paperData = await paperRes.json();
+        setPaper(paperData.paper);
+      }
+    } catch (error) {
+      console.error("Error refreshing paper data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle reviewer assignment
   const handleReviewerSelection = (reviewerId) => {
     setSelectedReviewers(current => {
@@ -252,6 +264,15 @@ export default function PaperDetailPage() {
               Download PDF
             </a>
           </Button>
+          
+          {paper.status === 'UNDER_REVIEW' && (
+            <AssignReviewersDialog
+              paperId={paper.id}
+              currentReviewerIds={(paper.reviews || []).map(r => r.reviewerId || r.reviewer?.id)}
+              onAssignmentComplete={refreshPaperData}
+            />
+          )}
+          
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="success">
@@ -368,11 +389,20 @@ export default function PaperDetailPage() {
                     <div 
                       className="bg-blue-600 h-2.5 rounded-full" 
                       style={{ 
-                        width: `${paper.reviews.filter(r => r.completed).length / paper.reviews.length * 100}%` 
+                        width: `${paper.reviews.filter(r => r.completed).length / (paper.reviews.length || 1) * 100}%` 
                       }}
                     ></div>
                   </div>
                 </div>
+                
+                {paper.reviews.length === 0 && paper.status === 'UNDER_REVIEW' && (
+                  <div className="mt-4">
+                    <Button onClick={() => document.getElementById('assign-reviewers-trigger')?.click()}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Assign Reviewers
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
             
@@ -475,52 +505,18 @@ export default function PaperDetailPage() {
                 Assign reviewers to this paper based on their expertise and availability.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {availableReviewers.length === 0 ? (
-                <div className="text-center p-8 border rounded-md">
-                  <Users className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                  <p className="text-muted-foreground">
-                    No available reviewers to assign.
-                    <br />
-                    All eligible reviewers are already assigned to this paper.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium mb-2">Available Reviewers</h3>
-                    <div className="border rounded-md divide-y">
-                      {availableReviewers.map(reviewer => (
-                        <div key={reviewer.id} className="p-3 flex items-center justify-between hover:bg-gray-50">
-                          <div className="flex items-center">
-                            <Avatar className="h-8 w-8 mr-2">
-                              <AvatarFallback>{reviewer.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{reviewer.name}</p>
-                              <p className="text-sm text-gray-500">{reviewer.email}</p>
-                            </div>
-                          </div>
-                          <Checkbox 
-                            checked={selectedReviewers.includes(reviewer.id)}
-                            onCheckedChange={() => handleReviewerSelection(reviewer.id)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={assignReviewers} 
-                      disabled={selectedReviewers.length === 0 || isAssigning}
-                    >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      {isAssigning ? "Assigning..." : "Assign Selected Reviewers"}
-                    </Button>
-                  </div>
-                </>
-              )}
+            <CardContent className="text-center p-8">
+              <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium mb-2">Manage Reviewer Assignments</h3>
+              <p className="text-muted-foreground mb-6">
+                Use the Assign Reviewers button to select and assign reviewers to this paper.
+              </p>
+              
+              <AssignReviewersDialog
+                paperId={paper.id}
+                currentReviewerIds={(paper.reviews || []).map(r => r.reviewerId || r.reviewer?.id)}
+                onAssignmentComplete={refreshPaperData}
+              />
             </CardContent>
           </Card>
         </TabsContent>
