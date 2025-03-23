@@ -32,13 +32,16 @@ export async function POST(req: Request) {
     }
     
     // Create the paper
+    // Note: keywords is stored directly as a string in PostgreSQL
+    // The front-end already sends it as a comma-separated string
     const paper = await db.paper.create({
       data: {
         title,
         abstract,
-        keywords,
+        keywords, // Store directly as a string
         pdfUrl,
         authorId: user.id,
+        status: "SUBMITTED"
       }
     });
     

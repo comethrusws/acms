@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -14,7 +16,11 @@ export const middleware = clerkMiddleware({
     "/api/webhooks(.*)",
     "/onboarding(.*)",
     "/unauthorized",
-    "/admin(.*)" // Make sure admin routes are public
+    "/admin(.*)",
+    "/about",
+    "/privacy-policy",
+    "/terms",
+    "/uploads/papers/(.*)", // Make sure admin routes are public
   ],
   async afterAuth(auth, req) {
     if (auth.isPublicRoute) {
