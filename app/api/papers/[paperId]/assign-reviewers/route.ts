@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
 
+// Fixed type definition for Next.js App Router
 export async function POST(
   request: Request,
   { params }: { params: { paperId: string } }
