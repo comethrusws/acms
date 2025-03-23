@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
-import { Search, Filter, MoreHorizontal, Edit, Trash2, FileText, CheckCircle, XCircle, Clock, Download } from "lucide-react";
+import { Search, Filter } from "lucide-react";
+import { Suspense } from "react";
+import { PaperStatus } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,29 +14,35 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import PapersTable from "./components/papers-table";
+
+// Define interface for processed papers to ensure type safety
+interface ProcessedPaper {
+  id: string;
+  title: string;
+  abstract: string;
+  keywords: string;
+  status: PaperStatus;
+  pdfUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  authorId: string;
+  author?: {
+    id: string;
+    name: string;
+    email: string;
+    createdAt: string;
+    updatedAt: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
 
 export default async function PapersPage() {
   await requireAdmin();
@@ -54,6 +62,23 @@ export default async function PapersPage() {
   const underReviewCount = await db.paper.count({ where: { status: 'UNDER_REVIEW' } });
   const acceptedCount = await db.paper.count({ where: { status: 'ACCEPTED' } });
   const rejectedCount = await db.paper.count({ where: { status: 'REJECTED' } });
+
+  // Process papers to ensure they match the expected Paper type with proper serialization
+  const processedPapers: ProcessedPaper[] = papers.map(paper => ({
+    ...paper,
+    keywords: paper.keywords || '',  // Convert null to empty string
+    createdAt: paper.createdAt.toISOString(),
+    updatedAt: paper.updatedAt.toISOString(),
+    author: paper.author ? {
+      ...paper.author,
+      createdAt: paper.author.createdAt.toISOString(),
+      updatedAt: paper.author.updatedAt.toISOString()
+    } : undefined
+  }));
+
+  // Create token for client-side API access
+  // This is just a placeholder - in a real app, you would use a proper auth token
+  // or you would handle the API calls on the server side
 
   return (
     <div className="space-y-6">
@@ -144,76 +169,12 @@ export default async function PapersPage() {
                 </Button>
               </div>
               
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Author</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {papers.map((paper) => (
-                      <TableRow key={paper.id}>
-                        <TableCell className="font-medium">{paper.title}</TableCell>
-                        <TableCell>{paper.author?.name || 'Unknown'}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            paper.status === 'ACCEPTED' ? 'default' :
-                            paper.status === 'REJECTED' ? 'destructive' :
-                            paper.status === 'UNDER_REVIEW' ? 'outline' :
-                            'outline'
-                          }>
-                            {paper.status.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(paper.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/papers/${paper.id}`}>
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  View Details
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link href={paper.pdfUrl || '#'} target="_blank">
-                                  <Download className="mr-2 h-4 w-4" />
-                                  Download PDF
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem>
-                                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                                Accept Paper
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                                Reject Paper
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Clock className="mr-2 h-4 w-4 text-amber-500" />
-                                Set as Under Review
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <Suspense fallback={<div>Loading papers...</div>}>
+                {/* Add a key to force re-render when papers change */}
+                <div key={`papers-${processedPapers.length}`}>
+                  <PapersTable initialPapers={processedPapers} />
+                </div>
+              </Suspense>
               
               <div className="flex items-center justify-end space-x-2 mt-4">
                 <Button variant="outline" size="sm" disabled>

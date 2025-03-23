@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { PaperStatus } from '@prisma/client';
+import { auth } from '@clerk/nextjs/server';
 
 export async function GET(
   req: Request,
@@ -35,9 +37,19 @@ export async function GET(
         reviews: {
           select: {
             id: true,
+            reviewerId: true,
             score: true,
             completed: true,
-            ...(user.role === "ADMIN" || user.role === "ORGANIZER" ? { comments: true } : { comments: false })
+            comments: user.role === "ADMIN" || user.role === "ORGANIZER"
+          },
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
           }
         }
       }
@@ -50,26 +62,72 @@ export async function GET(
       );
     }
     
-    // If user is a reviewer, hide author information by creating a new object
-    // instead of trying to delete a property (which causes TypeScript error)
-    let responseData;
-    if (user.role === "REVIEWER") {
-      // Create a new object without the author property
-      const { author, ...paperWithoutAuthor } = paper;
-      responseData = {
-        ...paperWithoutAuthor,
-        pdfUrl: paper.anonymizedPdfUrl || paper.pdfUrl
-      };
-    } else {
-      responseData = paper;
-    }
-    
-    return NextResponse.json({ paper: responseData });
+    return NextResponse.json({ paper });
     
   } catch (error) {
     console.error("Error fetching paper:", error);
     return NextResponse.json(
       { message: "Error fetching paper" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH request to update a paper's status
+export async function PATCH(
+  request: Request,
+  { params }: { params: { paperId: string } }
+) {
+  try {
+    // Check admin authentication using cookie
+    const cookieHeader = request.headers.get('cookie');
+    const cookies = cookieHeader?.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {} as Record<string, string>) || {};
+    
+    const isAdmin = cookies['admin_session'] === 'true';
+    
+    if (!isAdmin) {
+      return NextResponse.json(
+        { message: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
+    const { paperId } = params;
+    const data = await request.json();
+    
+    // Validate input
+    if (!data.status || !Object.values(PaperStatus).includes(data.status)) {
+      return NextResponse.json(
+        { message: 'Invalid status value' },
+        { status: 400 }
+      );
+    }
+
+    // Update paper in database
+    const updatedPaper = await db.paper.update({
+      where: { id: paperId },
+      data: { 
+        status: data.status,
+        updatedAt: new Date()
+      },
+      include: {
+        author: true
+      }
+    });
+
+    // Return the updated paper
+    return NextResponse.json({
+      message: 'Paper status updated successfully',
+      paper: updatedPaper
+    });
+  } catch (error) {
+    console.error('Error updating paper status:', error);
+    return NextResponse.json(
+      { message: 'Failed to update paper status' },
       { status: 500 }
     );
   }
