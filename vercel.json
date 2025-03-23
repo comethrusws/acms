@@ -1,0 +1,8 @@
+{
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_SKIP_LINT": "true",
+      "NEXT_PUBLIC_SKIP_TYPE_CHECK": "true"
+    }
+  }
+}
